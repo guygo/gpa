@@ -88,7 +88,7 @@ func createTable(tableprotype tablestruct) table {
 		case reflect.Slice:
 			element := protoField.Type.Elem()
 			if element.Kind() == reflect.Struct {
-				newtable.relations = append(newtable.relations, relation{MANYTOMANY, element.Name()})
+				newtable.relations = append(newtable.relations, relation{ONETOMANY, element.Name()})
 			}
 		default:
 

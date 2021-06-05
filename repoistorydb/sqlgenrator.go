@@ -25,11 +25,11 @@ func generateSqlCreateTables(r *Repoistory) []string {
 	return CreateCommands
 }
 func createOneToOneRealtions(tableName string, id string, ref string) string {
-	return fmt.Sprintf("ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES (%s) (%s)\tDEFERRABLE INITIALLY DEFERRED", tableName, id, ref, id)
+	return fmt.Sprintf("ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s (%s)\tDEFERRABLE INITIALLY DEFERRED", tableName, id, ref, id)
 }
 
 func createOneToManyRealtions(tableName string, id string, ref string) string {
-	return fmt.Sprintf("ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES (%s) (%s)", tableName, id, ref, id)
+	return fmt.Sprintf("ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s (%s)", ref, id, tableName, id)
 }
 
 func generateSqlCreateRelations(r *Repoistory) []string {
@@ -40,9 +40,11 @@ func generateSqlCreateRelations(r *Repoistory) []string {
 		for _, rel := range v.relations {
 			x := (v.uniqueIds)
 			switch rel.relationkind {
-			case ONETOMANY:
+			case ONETOONE:
+				table := r.tabels[rel.relatedto]
 				CreateAlters = append(CreateAlters, createOneToOneRealtions(k, strings.Join(*(x), ","), rel.relatedto))
-			case MANYTOMANY:
+				CreateAlters = append(CreateAlters, createOneToOneRealtions(table.tableName, strings.Join(*(table.uniqueIds), ","), k))
+			case ONETOMANY:
 				CreateAlters = append(CreateAlters, createOneToManyRealtions(rel.relatedto, strings.Join(*(x), ","), k))
 			}
 		}
@@ -54,16 +56,23 @@ func checkIfStructEmpty(ty reflect.Type, object reflect.Value) bool {
 	v := reflect.New(ty).Elem().Interface()
 	return v == object
 }
-func (t *table) InsertCommand(object interface{}) string {
+func (t *table) InsertCommand(object interface{}, repo *Repoistory) string {
 	values := reflect.ValueOf(object)
 	for _, v := range t.relations {
 		if v.relationkind == ONETOONE {
 			checkIfStructEmpty(reflect.TypeOf(v), values.FieldByName(v.relatedto))
 		} else if v.relationkind == ONETOMANY {
-			ptr := values.FieldByName(v.relatedto)
+			//find table using repo
+			fmt.Println(values)
+			for i := 0; i < values.NumField(); i++ {
+
+				fmt.Println(values.FieldByIndex([]int{i}).Type())
+			}
+			ptr := values.FieldByName("rooms")
 			for i := 0; i < ptr.Len(); i++ {
 				checkIfStructEmpty(reflect.TypeOf(ptr.Index(i)), ptr.Index(i))
 			}
+			fmt.Println(ptr)
 		}
 	}
 	insertCommand := `INSERT INTO %s(%s) VALUES (%s);`
